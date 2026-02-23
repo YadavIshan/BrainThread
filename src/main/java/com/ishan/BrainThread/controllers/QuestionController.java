@@ -4,22 +4,30 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 
-import com.ishan.BrainThread.models.Question;
-import com.ishan.BrainThread.repositories.QuestionRepository;
+import com.ishan.BrainThread.dto.QuestionRequestDTO;
+import com.ishan.BrainThread.servicce.IQuestionService;
 
 import reactor.core.publisher.Flux;
-import org.springframework.beans.factory.annotation.Autowired;
+import reactor.core.publisher.Mono;
+import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("/api/questions")
+@RequiredArgsConstructor
 public class QuestionController {
 
-    @Autowired
-    private QuestionRepository questionRepository;
+    private final IQuestionService questionService;
 
     @GetMapping("/author/{authorId}")
-    public Flux<Question> getQuestionsByAuthorId(@PathVariable String authorId) {
-        return questionRepository.findByUserId(authorId);
+    public Flux<QuestionRequestDTO> getQuestionsByAuthorId(@PathVariable String authorId) {
+        return questionService.getQuestionsByAuthorId(authorId);
+    }
+
+    @PostMapping
+    public Mono<QuestionRequestDTO> createQuestion(@RequestBody QuestionRequestDTO question) {
+        return questionService.createQuestion(question);
     }
 }

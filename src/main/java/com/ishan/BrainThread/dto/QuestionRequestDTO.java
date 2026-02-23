@@ -1,27 +1,19 @@
-package com.ishan.BrainThread.models;
+package com.ishan.BrainThread.dto;
 
-import org.springframework.data.annotation.Id;
-import org.springframework.data.mongodb.core.mapping.Document;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
-
-import java.util.Date;
-
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.LastModifiedDate;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.AllArgsConstructor;
+
+import java.util.Date;
 
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Document(collection = "questions")
-public class Question {
-    @Id
-    private String id;
+public class QuestionRequestDTO {
 
     @NotBlank(message = "Title is required")
     @Size(min = 10, max = 100, message = "Title must be between 10 and 100 characters")
@@ -34,9 +26,7 @@ public class Question {
     @NotBlank(message = "User ID is required")
     private String userId;
 
-    @CreatedDate
     private Date createdAt;
 
-    @LastModifiedDate
     private Date updatedAt;
 }
