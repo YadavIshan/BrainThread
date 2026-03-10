@@ -1,11 +1,13 @@
 package com.ishan.BrainThread.adapter;
 
-import com.ishan.BrainThread.dto.QuestionRequestDTO;
+import com.ishan.BrainThread.dto.QuestionResponseDTO;
 import com.ishan.BrainThread.models.Question;
 
 public class QuestionAdapter {
-    public static QuestionRequestDTO toQuestionResponseDTO(Question question) {
-        return QuestionRequestDTO.builder()
+
+    public static QuestionResponseDTO toQuestionResponseDTO(Question question) {
+        return QuestionResponseDTO.builder()
+                .id(question.getId())
                 .title(question.getTitle())
                 .content(question.getContent())
                 .userId(question.getUserId())
