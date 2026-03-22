@@ -7,6 +7,7 @@ import org.springframework.data.mongodb.repository.ReactiveMongoRepository;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import com.ishan.BrainThread.models.Question;
+import java.time.LocalDateTime;
 
 @Repository
 public interface QuestionRepository extends ReactiveMongoRepository<Question, String> {
@@ -24,6 +25,7 @@ public interface QuestionRepository extends ReactiveMongoRepository<Question, St
     @Query("{ tags: ?0 }")
     Flux<Question> findByTag(String tag);
 
-    
-    Flux<Question> findByCreatedAtGreaterThanOrderByCreatedAtDesc(LocalDateTime createdAt, Pageable pageable);
+    Flux<Question> findTop10ByOrderByCreatedAtDesc();
+
+    Flux<Question> findByCreatedAtLessThanOrderByCreatedAtDesc(LocalDateTime createdAt, Pageable pageable);
 }

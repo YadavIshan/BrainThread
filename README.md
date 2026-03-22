@@ -43,6 +43,11 @@ GET /api/questions/author/{authorId}
   → QuestionAdapter maps each Question → QuestionResponseDTO
   → Response returned as Flux<QuestionResponseDTO>
 
+GET /api/questions?cursor=...&limit=10
+  → Service decodes base64 timestamp cursor
+  → Repository fetches top N records older than cursor
+  → Streamed as Flux<QuestionResponseDTO>
+
 GET /api/questions/search?query=...&page=0&size=10
   → Service builds PageRequest from page/size params
   → Repository runs MongoDB $or regex query (title or content)
@@ -241,6 +246,46 @@ curl http://localhost:8080/api/questions/author/user_abc123
 **PowerShell:**
 ```powershell
 Invoke-RestMethod -Uri "http://localhost:8080/api/questions/author/user_abc123"
+```
+
+---
+
+### 📜 GET `/api/questions` — Get All Questions (Cursor Paginated)
+
+Returns questions globally, paginated using a `cursor` (timestamp) for maximum database performance.
+
+**Query Parameters:**
+| Param | Type | Default | Description |
+|---|---|---|---|
+| `cursor` | `String` | `null` | The `createdAt` timestamp of the last item you saw. If omitted, returns the absolute newest questions. |
+| `limit` | `int` | `10` | Maximum results to return |
+
+**Response `200 OK`:**
+```json
+[
+  {
+    "id": "65f1a2b3c4d5e6f7a8b9c0d1",
+    "title": "What is reactive programming?",
+    "content": "...",
+    "userId": "user_abc123",
+    "createdAt": "2026-03-10T16:58:00.000",
+    "updatedAt": "2026-03-10T16:58:00.000"
+  }
+]
+```
+
+**cURL:**
+```bash
+# Initial load (no cursor)
+curl "http://localhost:8080/api/questions?limit=5"
+
+# Next page (using the timestamp of the last item in the previous request)
+curl "http://localhost:8080/api/questions?cursor=2026-03-10T16:58:00.000&limit=5"
+```
+
+**PowerShell:**
+```powershell
+Invoke-RestMethod -Uri "http://localhost:8080/api/questions?cursor=2026-03-10T16:58:00.000&limit=5"
 ```
 
 ---

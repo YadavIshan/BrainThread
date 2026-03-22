@@ -1,0 +1,16 @@
+package com.ishan.BrainThread.service;
+
+import reactor.core.publisher.Mono;
+import reactor.core.publisher.Flux;
+import com.ishan.BrainThread.dto.AnswerRequestDTO;
+import com.ishan.BrainThread.dto.AnswerResponseDTO;
+
+public interface IAnswerService {
+    public Mono<AnswerResponseDTO> createAnswer(AnswerRequestDTO answerDTO);
+
+    public Mono<Void> searchQuestions(String query, String cursor, int size);
+
+    public Flux<AnswerResponseDTO> getAllQuestions(String cursor, int size);
+
+    public Mono<AnswerResponseDTO> getQuestionById(String id);
+}

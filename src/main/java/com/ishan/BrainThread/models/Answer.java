@@ -1,6 +1,7 @@
 package com.ishan.BrainThread.models;
 
 import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -18,14 +19,10 @@ import lombok.AllArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Document(collection = "questions")
-public class Question {
+@Document(collection = "answers")
+public class Answer {
     @Id
     private String id;
-
-    @NotBlank(message = "Title is required")
-    @Size(min = 10, max = 100, message = "Title must be between 10 and 100 characters")
-    private String title;
 
     @NotBlank(message = "Content is required")
     @Size(min = 10, max = 1000, message = "Content must be between 10 and 1000 characters")
@@ -34,9 +31,12 @@ public class Question {
     @NotBlank(message = "User ID is required")
     private String userId;
 
-    private Integer viewCount;
+    @NotBlank(message = "Question ID is required")
+    @Indexed
+    private String questionId;
 
     @CreatedDate
+    @Indexed
     private Date createdAt;
 
     @LastModifiedDate

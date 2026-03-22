@@ -12,7 +12,9 @@ import lombok.RequiredArgsConstructor;
 import com.ishan.BrainThread.adapter.QuestionAdapter;
 import com.ishan.BrainThread.dto.QuestionResponseDTO;
 import com.ishan.BrainThread.dto.QuestionRequestDTO;
+import com.ishan.BrainThread.utils.CursorUtils;
 import java.util.Date;
+import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
@@ -68,16 +70,27 @@ public class QuestionService implements IQuestionService {
     public Flux<QuestionResponseDTO> getAllQuestions(String cursor, int limit) {
         Pageable pageable = PageRequest.of(0, limit);
         if(!CursorUtils.isValidCursor(cursor)) {
-            throw new IllegalArgumentException("invalid cursor");
+            return questionRepository.findTop10ByOrderByCreatedAtDesc()
+                .take(limit)
+                .map(QuestionAdapter::toQuestionResponseDTO)
+                .doOnComplete(() -> {
+                    System.out.println("Questions retrieved successfully");
+                })
+                .doOnError(e -> {
+                    System.out.println("Error retrieving questions: " + e.getMessage());
+                });
         }else{
             LocalDateTime cursorDate = CursorUtils.encodeCursor(cursor);
             
-            //Filtering out records
-            questionRepository.findByCreatedAtGreaterThanOrderByCreatedAtDesc(cursorDate, pageable)
-                .map(QuestionAdapter::toQuestionResponseDTO);
+            //Filtering out records older than the cursor
+            return questionRepository.findByCreatedAtLessThanOrderByCreatedAtDesc(cursorDate, pageable)
+                .map(QuestionAdapter::toQuestionResponseDTO)
+                .doOnComplete(() -> {
+                    System.out.println("Questions retrieved successfully");
+                })
+                .doOnError(e -> {
+                    System.out.println("Error retrieving questions: " + e.getMessage());
+                });
         }
-        return questionRepository.findAll(pageable)
-                .map(QuestionAdapter::toQuestionResponseDTO);
     }
 }
-//Todo : do method in Flux and Mono
