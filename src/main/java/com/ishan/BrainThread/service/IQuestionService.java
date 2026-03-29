@@ -16,4 +16,6 @@ public interface IQuestionService {
     public Flux<QuestionResponseDTO> getQuestionByTag(String tag, int page, int size);
 
     public Flux<QuestionResponseDTO> getAllQuestions(String cursor, int limit);
+
+    public Mono<QuestionResponseDTO> getQuestionById(String id);
 }

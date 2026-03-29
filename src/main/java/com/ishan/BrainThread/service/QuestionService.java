@@ -11,16 +11,20 @@ import lombok.RequiredArgsConstructor;
 
 import com.ishan.BrainThread.adapter.QuestionAdapter;
 import com.ishan.BrainThread.dto.QuestionResponseDTO;
+import com.ishan.BrainThread.events.ViewCountEvent;
 import com.ishan.BrainThread.dto.QuestionRequestDTO;
 import com.ishan.BrainThread.utils.CursorUtils;
 import java.util.Date;
 import java.time.LocalDateTime;
+import com.ishan.BrainThread.producer.KafkaEventProducer;
+
 
 @Service
 @RequiredArgsConstructor
 public class QuestionService implements IQuestionService {
 
     private final QuestionRepository questionRepository;
+    private final KafkaEventProducer kafkaEventProducer;
 
     @Override
     public Mono<QuestionResponseDTO> createQuestion(QuestionRequestDTO questionDTO) {
@@ -92,5 +96,19 @@ public class QuestionService implements IQuestionService {
                     System.out.println("Error retrieving questions: " + e.getMessage());
                 });
         }
+    }
+
+    @Override
+    public Mono<QuestionResponseDTO> getQuestionById(String id) {
+        return questionRepository.findById(id)
+                .map(QuestionAdapter::toQuestionResponseDTO)
+                .doOnSuccess(q -> {
+                    System.out.println("Question retrieved successfully: " + q);
+                    ViewCountEvent event = new ViewCountEvent(id , "question" , LocalDateTime.now());
+                    kafkaEventProducer.publishViewCountEvent(event);
+                })
+                .doOnError(e -> {
+                    System.out.println("Error retrieving question: " + e.getMessage());
+                });
     }
 }
