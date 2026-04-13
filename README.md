@@ -1,6 +1,6 @@
 # 🧵 BrainThread
 
-A reactive Q&A backend built with **Spring Boot 3**, **WebFlux**, and **MongoDB**. BrainThread lets users post questions and retrieve them by author, search by keyword, or filter by tag — all served over a fully non-blocking, reactive stack.
+A reactive Q&A backend built with **Spring Boot 3**, **WebFlux**, **MongoDB**, and **Apache Kafka**. BrainThread lets users post questions and retrieve them by author, search by keyword, or filter by tag — all served over a fully non-blocking, reactive stack. View counts are tracked asynchronously via a Kafka event pipeline.
 
 ---
 
@@ -24,6 +24,32 @@ Client (HTTP)
 │   QuestionRepository     │  ← Reactive MongoDB queries
 └────────┬─────────────────┘
          │
+         ▼
+    MongoDB (BrainThread db)
+
+
+── View Count Event Flow (Async / Kafka) ──────────────────────
+
+GET /api/questions/{id}
+     │
+     ▼
+┌─────────────────────┐
+│   QuestionService   │  → fetches question, then fires event
+└────────┬────────────┘
+         │  publishes ViewCountEvent
+         ▼
+┌──────────────────────────┐
+│   KafkaEventProducer     │  → sends to "view-count-topic" (keyed by targetId)
+└────────┬─────────────────┘
+         │
+         ▼
+    Apache Kafka (view-count-topic)
+         │
+         ▼
+┌──────────────────────────┐
+│   KafkaEventConsumer     │  → @KafkaListener (3 concurrent threads)
+└────────┬─────────────────┘
+         │  increments viewCount via repository
          ▼
     MongoDB (BrainThread db)
 ```
@@ -56,6 +82,12 @@ GET /api/questions/search?query=...&page=0&size=10
 GET /api/questions/tag/{tag}
   → Repository queries documents where tags array contains the value
   → Streamed as Flux<QuestionResponseDTO>
+
+GET /api/questions/{id}
+  → Repository fetches question by ID (Mono)
+  → QuestionAdapter maps Question → QuestionResponseDTO
+  → doOnSuccess fires a ViewCountEvent → KafkaEventProducer sends to Kafka
+  → KafkaEventConsumer receives event, increments viewCount in MongoDB (async)
 ```
 
 ---
@@ -74,6 +106,8 @@ GET /api/questions/tag/{tag}
 | **Bean Validation** | `@NotBlank`, `@Size` on DTOs | Jakarta Validation enforces input rules at the request layer, before any business logic runs. |
 | **Pagination** | `PageRequest` / `Pageable` | `searchQuestions` and `getQuestionByTag` accept `page` and `size` params, passed as a `Pageable` to the repository. |
 | **Audit Timestamps** | `@CreatedDate`, `@LastModifiedDate` on `Question` | Spring Data auto-populates `createdAt` / `updatedAt` for MongoDB documents. |
+| **Event-Driven Architecture** | `ViewCountEvent`, `KafkaEventProducer`, `KafkaEventConsumer` | View count increments are decoupled from the read path — the HTTP response is returned immediately and the counter update happens asynchronously via Kafka. |
+| **Observer / Pub-Sub Pattern** | Kafka topic `view-count-topic` | Producer publishes events; consumer subscribes independently. Neither knows about the other, keeping them fully decoupled. |
 
 ---
 
@@ -86,6 +120,8 @@ GET /api/questions/tag/{tag}
 | Spring WebFlux | via Boot starter |
 | Spring Data MongoDB Reactive | via Boot starter |
 | Project Reactor | via WebFlux |
+| Apache Kafka | 3.x |
+| Spring Kafka | via Boot starter |
 | Lombok | Latest |
 | Jakarta Bean Validation | via Boot starter |
 | Gradle | 9.x |
@@ -97,6 +133,7 @@ GET /api/questions/tag/{tag}
 
 - **Java 17+** — [Download](https://adoptium.net/)
 - **MongoDB** running on port `27017` — local install or Docker (see below)
+- **Apache Kafka** running on port `9092` — local install or Docker (see below)
 - **Git** — [Download](https://git-scm.com/)
 
 > Spring will create the `BrainThread` database automatically on the first write. You do not need to create it manually.
@@ -129,6 +166,19 @@ mongod --dbpath /data/db
 mongod --dbpath "C:\data\db"
 ```
 
+### 3. Start Kafka
+
+**Docker (easiest — runs both Zookeeper and Kafka):**
+```bash
+docker run -d --name zookeeper -p 2181:2181 zookeeper:latest
+docker run -d --name kafka -p 9092:9092 \
+  -e KAFKA_ZOOKEEPER_CONNECT=zookeeper:2181 \
+  -e KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://localhost:9092 \
+  --link zookeeper confluentinc/cp-kafka:latest
+```
+
+> The topic `view-count-topic` is created automatically by the application on first publish.
+
 ### 3. Run the application
 
 ```bash
@@ -154,6 +204,10 @@ spring.data.mongodb.host=localhost
 spring.data.mongodb.port=27017
 spring.data.mongodb.database=BrainThread
 spring.data.mongodb.auto-index-creation=true
+
+# Kafka
+spring.kafka.bootstrap-servers=localhost:9092
+spring.kafka.consumer.group-id=view-count-consumer
 ```
 
 ---
@@ -371,6 +425,37 @@ curl "http://localhost:8080/api/questions/tag/java?page=0&size=5"
 Invoke-RestMethod -Uri "http://localhost:8080/api/questions/tag/java?page=0&size=5"
 ```
 
+### 🔎 GET `/api/questions/{id}` — Get Question by ID
+
+Fetches a single question by its MongoDB ID. Asynchronously fires a view count event to Kafka.
+
+**Path Variable:** `id` — the MongoDB document ID.
+
+**Response `200 OK`:**
+```json
+{
+  "id": "65f1a2b3c4d5e6f7a8b9c0d1",
+  "title": "What is reactive programming?",
+  "content": "...",
+  "userId": "user_abc123",
+  "viewCount": 42,
+  "createdAt": "2026-03-10T16:58:00.000+00:00",
+  "updatedAt": "2026-03-10T16:58:00.000+00:00"
+}
+```
+
+**cURL:**
+```bash
+curl http://localhost:8080/api/questions/65f1a2b3c4d5e6f7a8b9c0d1
+```
+
+**PowerShell:**
+```powershell
+Invoke-RestMethod -Uri "http://localhost:8080/api/questions/65f1a2b3c4d5e6f7a8b9c0d1"
+```
+
+> ℹ️ The `viewCount` field is incremented **asynchronously** after the response is returned — the user never waits for it.
+
 ---
 
 ## 🧪 Running Tests
@@ -400,12 +485,22 @@ src/main/java/com/ishan/BrainThread/
 ├── repositories/
 │   └── QuestionRepository.java      # ReactiveMongoRepository queries
 ├── models/
-│   └── Question.java                # MongoDB document model (@Document)
+│   └── Question.java                # MongoDB document model (@Document, includes viewCount)
 ├── dto/
 │   ├── QuestionRequestDTO.java      # Inbound request shape (validated)
 │   └── QuestionResponseDTO.java     # Outbound response shape (includes id)
-└── adapter/
-    └── QuestionAdapter.java         # Question → QuestionResponseDTO mapping
+├── adapter/
+│   └── QuestionAdapter.java         # Question → QuestionResponseDTO mapping
+├── events/
+│   └── ViewCountEvent.java          # Kafka event payload (targetId, targetType, timestamp)
+├── producer/
+│   └── KafkaEventProducer.java      # Publishes ViewCountEvent to Kafka topic
+├── consumers/
+│   └── KafkaEventConsumer.java      # @KafkaListener — increments viewCount in MongoDB
+├── config/
+│   └── KafkaConfig.java             # ProducerFactory, ConsumerFactory, KafkaTemplate, ListenerContainerFactory
+└── utils/
+    └── CursorUtils.java             # Base64 encode/decode for cursor-based pagination
 ```
 
 ---
