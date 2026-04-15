@@ -19,7 +19,7 @@ public class KafkaEventConsumer {
         //Note : If what you're returning inside the lambda is a Mono or Flux, always use flatMap, not map.
         questionRepository.findById(event.getTargetId())
             .flatMap(question -> {
-                question.setViewCount(question.getViewCount() + 1);
+                question.setViewCount(question.getViewCount() == null ? 1 : question.getViewCount() + 1);
                 return questionRepository.save(question);
             })
             .subscribe(updatedQuestion -> {
