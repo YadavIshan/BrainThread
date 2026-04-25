@@ -57,4 +57,9 @@ public class QuestionController {
     ) {
         return questionService.getAllQuestions(cursor, limit);
     }
+
+    @GetMapping("/elasticsearch")
+    public Flux<QuestionResponseDTO> searchQuestionsElastic(@RequestParam String query) {
+        return questionService.searchQuestionsElastic(query);
+    }
 }

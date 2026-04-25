@@ -18,4 +18,6 @@ public class LikeReqeustDTO {
     private String targetId;
     @NotNull(message = "Like status is required")
     private boolean isLike;
+    @NotBlank(message = "User ID is required")
+    private String userId;
 }

@@ -18,4 +18,6 @@ public interface IQuestionService {
     public Flux<QuestionResponseDTO> getAllQuestions(String cursor, int limit);
 
     public Mono<QuestionResponseDTO> getQuestionById(String id);
+
+    public Flux<QuestionResponseDTO> searchQuestionsElastic(String query);
 }

@@ -15,6 +15,7 @@ public class LikeResponseDTO {
     private String id;
     private String targetType;
     private String targetId;
+    private String userId;
     private boolean isLike;
     private LocalDateTime createdAt;
 }

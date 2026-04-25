@@ -9,9 +9,9 @@ public interface ILikeService {
 
     public Mono<LikeResponseDTO> deleteLike(String id);
 
-    public Mono<LikeResponseDTO> countLikesByTargetIdAndTargetType(String targetId, String targetType);
+    public Mono<Long> countLikesByTargetIdAndTargetType(String targetId, String targetType);
 
-    public Mono<LikeResponseDTO> countDislikesByTargetIdAndTargetType(String targetId, String targetType);
+    public Mono<Long> countDislikesByTargetIdAndTargetType(String targetId, String targetType);
 
-    public Mono<LikeResponseDTO> toggleLike(String targetId, String targetType);
+    public Mono<LikeResponseDTO> toggleLike(String targetId, String targetType, String userId);
 }

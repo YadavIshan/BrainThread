@@ -8,9 +8,7 @@ import com.ishan.BrainThread.dto.AnswerResponseDTO;
 public interface IAnswerService {
     public Mono<AnswerResponseDTO> createAnswer(AnswerRequestDTO answerDTO);
 
-    public Mono<Void> searchQuestions(String query, String cursor, int size);
+    public Flux<AnswerResponseDTO> getAnswersForQuestion(String questionId, String cursor, int size);
 
-    public Flux<AnswerResponseDTO> getAllQuestions(String cursor, int size);
-
-    public Mono<AnswerResponseDTO> getQuestionById(String id);
+    public Mono<AnswerResponseDTO> getAnswerById(String id);
 }

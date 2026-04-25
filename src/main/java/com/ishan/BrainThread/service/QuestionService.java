@@ -7,6 +7,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import com.ishan.BrainThread.models.Question;
 import com.ishan.BrainThread.repositories.QuestionRepository;
+import com.ishan.BrainThread.repositories.QuestionDocumentRepository;
 import lombok.RequiredArgsConstructor;
 
 import com.ishan.BrainThread.adapter.QuestionAdapter;
@@ -25,6 +26,8 @@ public class QuestionService implements IQuestionService {
 
     private final QuestionRepository questionRepository;
     private final KafkaEventProducer kafkaEventProducer;
+    private final IQuestionIndexService questionIndexService;
+    private final QuestionDocumentRepository questionDocumentRepository;
 
     @Override
     public Mono<QuestionResponseDTO> createQuestion(QuestionRequestDTO questionDTO) {
@@ -36,7 +39,10 @@ public class QuestionService implements IQuestionService {
                 .updatedAt(new Date())
                 .build();
         return questionRepository.save(newQuestion)
-                .map(QuestionAdapter::toQuestionResponseDTO)
+                .map(savedQuestion -> {
+                    questionIndexService.createQuestionIndex(savedQuestion);
+                    return QuestionAdapter.toQuestionResponseDTO(savedQuestion);
+                })
                 .doOnSuccess(q -> {
                     System.out.println("Question created successfully: " + q);
                 })
@@ -109,6 +115,18 @@ public class QuestionService implements IQuestionService {
                 })
                 .doOnError(e -> {
                     System.out.println("Error retrieving question: " + e.getMessage());
+                });
+    }
+
+    @Override
+    public Flux<QuestionResponseDTO> searchQuestionsElastic(String query) {
+        return Flux.fromIterable(questionDocumentRepository.findByTitleContainingOrContentContaining(query, query))
+                .map(QuestionAdapter::toQuestionResponseDTO)
+                .doOnError(e -> {
+                    System.out.println("Error searching questions: " + e.getMessage());
+                })
+                .doOnComplete(() -> {
+                    System.out.println("Questions searched successfully");
                 });
     }
 }

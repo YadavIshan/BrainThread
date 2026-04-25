@@ -1,6 +1,6 @@
 # 🧵 BrainThread
 
-A reactive Q&A backend built with **Spring Boot 3**, **WebFlux**, **MongoDB**, and **Apache Kafka**. BrainThread lets users post questions and retrieve them by author, search by keyword, or filter by tag — all served over a fully non-blocking, reactive stack. View counts are tracked asynchronously via a Kafka event pipeline.
+A reactive Q&A backend built with **Spring Boot 3**, **WebFlux**, **MongoDB**, **Apache Kafka**, and **Elasticsearch**. BrainThread lets users post questions, write answers, leave likes, and perform blazing-fast full-text search. The core database runs on MongoDB, full-text search is powered by Elasticsearch, and view counts are tracked asynchronously via a Kafka event pipeline.
 
 ---
 
@@ -119,6 +119,7 @@ GET /api/questions/{id}
 | Spring Boot | 3.4.2 |
 | Spring WebFlux | via Boot starter |
 | Spring Data MongoDB Reactive | via Boot starter |
+| Spring Data Elasticsearch | via Boot starter |
 | Project Reactor | via WebFlux |
 | Apache Kafka | 3.x |
 | Spring Kafka | via Boot starter |
@@ -126,6 +127,7 @@ GET /api/questions/{id}
 | Jakarta Bean Validation | via Boot starter |
 | Gradle | 9.x |
 | MongoDB | 6+ recommended |
+| Elasticsearch | 8.x recommended |
 
 ---
 
@@ -134,6 +136,7 @@ GET /api/questions/{id}
 - **Java 17+** — [Download](https://adoptium.net/)
 - **MongoDB** running on port `27017` — local install or Docker (see below)
 - **Apache Kafka** running on port `9092` — local install or Docker (see below)
+- **Elasticsearch** running on port `9200` — local install or Docker (see below)
 - **Git** — [Download](https://git-scm.com/)
 
 > Spring will create the `BrainThread` database automatically on the first write. You do not need to create it manually.
@@ -179,7 +182,14 @@ docker run -d --name kafka -p 9092:9092 \
 
 > The topic `view-count-topic` is created automatically by the application on first publish.
 
-### 3. Run the application
+### 4. Start Elasticsearch
+
+**Docker (easiest):**
+```bash
+docker run -d --name elasticsearch -p 9200:9200 -e "discovery.type=single-node" -e "xpack.security.enabled=false" docker.elastic.co/elasticsearch/elasticsearch:8.12.0
+```
+
+### 5. Run the application
 
 ```bash
 # macOS / Linux
@@ -205,6 +215,9 @@ spring.data.mongodb.port=27017
 spring.data.mongodb.database=BrainThread
 spring.data.mongodb.auto-index-creation=true
 
+# Elasticsearch
+elasticsearch.uris=http://localhost:9200
+
 # Kafka
 spring.kafka.bootstrap-servers=localhost:9092
 spring.kafka.consumer.group-id=view-count-consumer
@@ -214,7 +227,10 @@ spring.kafka.consumer.group-id=view-count-consumer
 
 ## 📡 API Reference
 
-**Base URL:** `http://localhost:8080/api/questions`
+**Base URLs:** 
+- Questions: `http://localhost:8080/api/questions`
+- Answers: `http://localhost:8080/api/answers`
+- Likes: `http://localhost:8080/api/likes`
 
 ---
 
@@ -455,6 +471,91 @@ Invoke-RestMethod -Uri "http://localhost:8080/api/questions/65f1a2b3c4d5e6f7a8b9
 ```
 
 > ℹ️ The `viewCount` field is incremented **asynchronously** after the response is returned — the user never waits for it.
+
+---
+
+### 🚀 GET `/api/questions/elasticsearch` — Super-Fast Full-Text Search
+
+Powered by Elasticsearch, querying both the Title and Content fields for highly optimized search results.
+
+**Query Parameters:**
+- `query` (String): Search term
+
+**cURL:**
+```bash
+curl "http://localhost:8080/api/questions/elasticsearch?query=reactive"
+```
+
+**PowerShell:**
+```powershell
+Invoke-RestMethod -Uri "http://localhost:8080/api/questions/elasticsearch?query=reactive"
+```
+
+---
+
+### 📝 POST `/api/answers` — Create an Answer
+
+Submit an answer replying to a specific question.
+
+**Request Body:**
+```json
+{
+  "content": "Reactive programming handles concurrency with an event loop, drastically reducing memory overhead.",
+  "questionId": "65f1a2b3c4d5e6f7a8b9c0d1",
+  "userId": "user_expert89"
+}
+```
+
+**cURL:**
+```bash
+curl -X POST http://localhost:8080/api/answers \
+  -H "Content-Type: application/json" \
+  -d '{
+    "content": "Reactive programming handles concurrency with an event loop, drastically reducing memory overhead.",
+    "questionId": "65f1a2b3c4d5e6f7a8b9c0d1",
+    "userId": "user_expert89"
+  }'
+```
+
+---
+
+### 📚 GET `/api/answers/question/{questionId}` — Get Answers for a Question
+
+Streams all the answers that belong to a single question.
+
+**cURL:**
+```bash
+curl http://localhost:8080/api/answers/question/65f1a2b3c4d5e6f7a8b9c0d1
+```
+
+---
+
+### ❤️ POST `/api/likes/toggle` — Toggle a Like or Dislike
+
+Dynamically adds, flips, or removes a like depending on the user's current like state for the target entity (such as a Question or an Answer).
+
+**Query Parameters:**
+| Param | Type | Description |
+|---|---|---|
+| `targetId` | `String` | MongoDB ID of the liked entity |
+| `targetType` | `String` | e.g. `Question` or `Answer` |
+| `userId` | `String` | ID of the user performing the like |
+
+**cURL:**
+```bash
+curl -X POST "http://localhost:8080/api/likes/toggle?targetId=65f1a2b3c4d5e6f7a8b9c0d1&targetType=Question&userId=user_abc123"
+```
+
+---
+
+### 📊 GET `/api/likes/count/likes` — Get Total Likes
+
+Quickly calculate the absolute number of affirmative likes applied to a target.
+
+**cURL:**
+```bash
+curl "http://localhost:8080/api/likes/count/likes?targetId=65f1a2b3c4d5e6f7a8b9c0d1&targetType=Question"
+```
 
 ---
 
