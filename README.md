@@ -606,6 +606,14 @@ src/main/java/com/ishan/BrainThread/
 
 ---
 
+## 📝 TODOs
+
+- [ ] Build and integrate a Feed Generation Service
+- [ ] Implement a prefix-based search engine , ui , auth , recommendation eng
+- [ ] Convert all remaining code into reactive (Mono/Flux) code
+
+---
+
 ## 🤝 Contributing
 
 1. Fork the repo
